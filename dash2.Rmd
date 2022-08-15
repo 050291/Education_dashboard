@@ -1,0 +1,257 @@
+---
+title: "MEJOREDU"
+output: 
+  flexdashboard::flex_dashboard:
+    social: menu
+    source_code: embed
+    orientation: rows
+    runtime: shiny
+    storyboard: true
+    theme: readable
+---
+
+```{r setup, include=FALSE}
+library(flexdashboard)
+library(haven)
+library(dplyr)
+library(DT)
+library(shiny)
+library(knitr)
+library(rjson)
+library(tidyr)
+library(ggplot2)
+library(plotly)
+library(highcharter)
+library(crosstalk)
+library(sf)
+library(viridis)
+library(ggmap)
+library(leaflet)
+library(tmap)
+```
+
+
+```{r}
+setwd('C:/Users/victo/OneDrive/Documentos/Dashboard')
+
+
+pree1819 <- read_sas("pree1819.sas7bdat",NULL)
+preeind1819 <- read_sas("preein1819.sas7bdat",NULL)
+prim1819 <- read_sas("prim1819.sas7bdat",NULL)
+primin1819 <- read_sas("primin1819.sas7bdat",NULL)
+secug1819 <- read_sas("secug1819.sas7bdat",NULL)
+secut1819 <- read_sas("secut1819.sas7bdat",NULL)
+secute1819 <- read_sas("secute1819.sas7bdat",NULL)
+secutra1819 <- read_sas("secutra1819.sas7bdat",NULL)
+eb_1819_mge <- read_sas("eb_1819_mge.sas7bdat",NULL)
+
+pree1819 <- pree1819 %>% select(CCTT,LIBROS_INICIO,ENT,ts,sos,conteo)
+preeind1819 <- preeind1819 %>% select(CCTT,LIBROS_INICIO,ENT,ts,sos,conteo)
+prim1819 <- prim1819 %>% select(CCTT,LIBROS_INICIO,ENT,ts,sos,conteo)
+primin1819 <- primin1819 %>% select(CCTT,LIBROS_INICIO,ENT,ts,sos,conteo)
+secug1819 <- secug1819 %>% select(CCTT,LIBROS_INICIO,ENT,ts,sos,conteo)
+secut1819 <- secut1819 %>% select(CCTT,LIBROS_INICIO,ENT,ts,sos,conteo)
+secute1819 <- secute1819 %>% select(CCTT,LIBROS_INICIO,ENT,ts,sos,conteo)
+secutra1819 <- secutra1819 %>% select(CCTT,LIBROS_INICIO,ENT,ts,sos,conteo)
+
+basical <- rbind(pree1819,preeind1819,prim1819,primin1819,secug1819,secut1819,secute1819,secutra1819)
+
+basical <- merge(basical,eb_1819_mge,by="CCTT",all.x = TRUE)
+
+basical <- basical %>% mutate(NIVEL2=ifelse(NIVEL=="1","PREESCOLAR",ifelse(NIVEL=="2","PRIMARIA",ifelse(NIVEL=="3","SECUNDARIA",NA))))
+basical <- basical %>% mutate(NIVEL2=as.factor(NIVEL2))
+lev <- c("PREESCOLAR","PRIMARIA","SECUNDARIA")
+ENT_ADMON <- c("01","02","03","04","05","06","07","08","09","10","11","12","13","14","15","16","17","18","19","20","21","22","23","24","25","26","27","28","29","30","31","32")
+
+namest <- c("Aguascalientes","Baja California","Baja California Sur","Campeche","Coahuila","Colima","Chiapas","Chihuahua","Ciudad de México","Durango","Guanajuato","Guerrero",
+            "Hidalgo","Jalisco","México","Michoacán","Morelos","Nayarit","Nuevo León","Oaxaca","Puebla","Querétaro","Quintana Roo","San Luis Potosí","Sinaloa","Sonora","Tabasco",
+            "Tamaulipas","Tlaxcala","Veracruz","Yucatán","Zacatecas")
+Estados <- data.frame(ENT_ADMON,namest)
+
+basical <- merge(basical,Estados,by="ENT_ADMON",all.x = TRUE)
+
+```
+
+
+```{r}
+tabulado <- reactive({
+  tabla <- basical %>% filter(NIVEL2==input$nivel&LIBROS_INICIO=="SI") %>% group_by(ESTRATO,LIBROS_INICIO) %>% summarise(n())
+  tabla <- as.data.frame(tabla)
+  tabla <- tabla %>% spread(LIBROS_INICIO,"n()")
+
+  tabla2 <- basical %>% filter(NIVEL2==input$nivel) %>% group_by(ESTRATO) %>% summarise(n())
+  tabla2 <- as.data.frame(tabla2) %>% rename(Totales="n()")
+  
+  tablaf <- merge(tabla2,tabla,by="ESTRATO",all.x=TRUE)
+  
+  tablaf <- tablaf %>% mutate("Pct"=round((SI/Totales)*100,1))
+  tablaf <- as.data.frame(tablaf)
+  
+  tablaf
+
+})
+```
+
+LIBROS DE TEXTO{.tabset}
+==============================================================
+
+Row {data-width=250} {.sidebar} 
+-----------------------------------------------------------------------
+
+### FICHA TECNICA
+```{r}
+selectInput("nivel", "Seleccione el nivel educativo", choices =lev,selected = "PREESCOLAR")
+```
+
+
+**Porcentaje de escuelas con material educativo al inicio de ciclo**
+
+Definición: Número de escuelas en educación preescolar, primaria y secundaria que cuentan con material educativo a inicio de ciclo por cada cien.
+
+Propósito: Mostrar la proporción de escuelas que cuentan con el material educativo necesario para poder impartir una educación completa.
+
+Método de cálculo: Dividir el número de escuelas que contaban con material educativo a inicio de ciclo entre el total de escuelas desagregadas por tipo de servicio y sostenimiento multiplicado por 100.
+
+\center
+$\frac{E^{me}_{niv}}{E_{niv}}*100$
+\center
+
+Porcentaje de escuelas con material educativo al inicio de ciclo
+
+Definición: Número de escuelas en educación preescolar, primaria y secundaria que cuentan con material educativo a inicio de ciclo por cada cien.
+
+Propósito: Mostrar la proporción de escuelas que cuentan con el material educativo necesario para poder impartir una educación completa.
+
+Método de cálculo: Dividir el número de escuelas que contaban con material educativo a inicio de ciclo entre el total de escuelas desagregadas por tipo de servicio y sostenimiento multiplicado por 100.
+
+Row
+--------------------------------------------------------------
+### 
+
+```{r}
+renderValueBox(valueBox(value=paste(min(tabulado()[,4],na.rm=TRUE),"%",by=""),icon = 'fa-atlas', color='#B59461'))
+```
+
+###
+
+```{r}
+renderValueBox(
+valueBox(value=paste(max(tabulado()[,4],na.rm=TRUE),"%",by=""),icon ='fa-book', color='#B59461'))
+```
+
+Row
+--------------------------------------
+### TABULADO 
+
+
+```{r}
+renderDT({
+  DT::datatable(tabulado(),options=list(dom='t'),rownames=FALSE,escape = FALSE,style = 'bootstrap4') %>% formatStyle('ESTRATO',  color = 'white', backgroundColor = '#13322b', fontWeight = 'bold') %>% formatStyle(c('Totales','SI','Pct'),color = "#b9975b",backgroundColor = "white") 
+})
+
+```
+
+Row
+--------------------------------------
+### Gráfico {}
+```{r}
+
+renderPlotly({
+  ggplot(tabulado(),aes(x=ESTRATO,y=Pct,fill=ESTRATO))+
+    geom_bar(stat = "identity")+theme_classic()+scale_fill_manual(values = c("#651C32","#13322B","#B59461","#707372"))+scale_y_continuous(limits = c(0,100))
+    
+})
+
+
+```
+
+ESTADOS
+==========================================================
+
+Row {.tabset}
+-----------------------------------------------------------------------
+### ESTADOS
+
+```{r}
+selectInput("nivel1","Seleccione el nivel educativo",choices = lev,selected = "PREESCOLAR")
+
+estadost <- reactive({
+  tabla2 <- basical %>% filter(if (input$nivel1=="SECUNDARIA") NIVEL2==input$nivel1&ESTRATO!="Privado" else NIVEL2==input$nivel1) %>% group_by(ENT_ADMON,namest)%>% summarise(n())
+  tabla2 <- as.data.frame(tabla2) %>% rename(ESTADO=namest,TOTAL="n()")
+  
+  
+  tabla3 <- basical %>% filter(NIVEL2==input$nivel1&LIBROS_INICIO=="SI") %>% group_by(ENT_ADMON,namest) %>% summarise(n())
+  
+  tabla3 <- as.data.frame(tabla3) %>% rename(ESTADO=namest,SI="n()")
+  
+  
+  tabla <- merge(tabla2,tabla3,by="ENT_ADMON") %>% select(-ESTADO.x) %>% rename(ESTADO=ESTADO.y)
+  
+  tabla <- tabla %>% select(ENT_ADMON,ESTADO,TOTAL,SI) %>% mutate(Porcentaje=round(100*(SI/TOTAL),2))
+  tabla <- as_tibble(tabla)
+  tabla
+})
+
+renderDT(
+  DT::datatable(estadost(),rownames = FALSE,style = 'bootstrap4') %>% formatStyle(c("ENT_ADMON","ESTADO"),color="white",backgroundColor = '#13322b')
+)
+
+
+```
+
+
+
+
+```{r}
+estadost2 <- reactive({
+  tabla2 <- basical %>% filter(if (input$nivel1=="SECUNDARIA") NIVEL2==input$nivel1&ESTRATO!="Privado" else NIVEL2==input$nivel1) %>% group_by(ENT_ADMON,namest)%>% summarise(n())
+  tabla2 <- as.data.frame(tabla2) %>% rename(ESTADO=namest,TOTAL="n()")
+  
+  
+  tabla3 <- basical %>% filter(NIVEL2==input$nivel1&LIBROS_INICIO=="SI") %>% group_by(ENT_ADMON,namest) %>% summarise(n())
+  
+  tabla3 <- as.data.frame(tabla3) %>% rename(ESTADO=namest,SI="n()")
+  
+  
+  tabla <- merge(tabla2,tabla3,by="ENT_ADMON") %>% select(-ESTADO.x) %>% rename(ESTADO=ESTADO.y)
+  
+  tabla <- tabla %>% select(ENT_ADMON,ESTADO,TOTAL,SI) %>% mutate(Porcentaje=round(100*(SI/TOTAL),2)) %>% select(ENT_ADMON,ESTADO,Porcentaje)
+  tabla <- as_tibble(tabla)
+  tabla
+})
+```
+
+
+
+### GRAFICA 
+
+```{r}
+renderPlotly({ estadost2()  %>% ggplot()+geom_bar(aes(x=reorder(ESTADO,Porcentaje),y=Porcentaje),stat ="identity",fill="#b9975b",alpha=1/2)+coord_flip()+theme_classic()
+})
+
+```
+
+
+### MAPA
+
+
+```{r}
+
+map <- reactive({
+  mex <- sf::read_sf("dest_2015gw.shp")
+  mex <- mex %>% rename("ENT_ADMON"=CVE_ENT) %>% select(ENT_ADMON,geometry)
+  mapa <- merge(mex,estadost2(),by="ENT_ADMON")
+  mapa <- st_as_sf(mapa)
+  mapa
+}
+)
+```
+
+
+```{r}
+renderPlot({
+  tm_shape(map())+ tm_polygons("Porcentaje",pallete="viridis")+ tm_layout(frame=F)+tm_style("cobalt")
+})
+
+```
+
